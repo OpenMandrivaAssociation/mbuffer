@@ -1,0 +1,159 @@
+--- log.c	2012-11-16 11:17:11.000000000 +0100
++++ log.c.oden	2013-01-04 11:44:00.198876548 +0100
+@@ -47,20 +47,35 @@ pthread_mutex_t
+ 	LogMut = PTHREAD_MUTEX_INITIALIZER;
+ #endif
+ 
+-
+-#ifdef DEBUG
+-void logdebug(const char *msg, ...)
++void logwrite(char *buf, size_t b)
+ {
+-	va_list val;
+-	char buf[256];
+-	size_t b = PrefixLen;
+-
+-	va_start(val,msg);
+-	(void) memcpy(buf,Prefix,b);
+-	b += vsnprintf(buf + b,sizeof(buf)-b,msg,val);
+-	assert(b < sizeof(buf));
+ #ifdef NEED_IO_INTERLOCK
+-	if (b <= PIPE_BUF) {
++	static int lastfd = -1;
++	static size_t pipebuf = 0;
++
++	if (pipebuf == 0 || Log != lastfd) {
++		long p = -1;
++
++#ifdef _PC_PIPE_BUF
++		p = fpathconf(Log,_PC_PIPE_BUF);
++#endif
++		if (p == -1)
++#ifdef PIPE_BUF
++			p = PIPE_BUF;
++#else
++#ifdef _POSIX_PIPE_BUF
++			p = _POSIX_PIPE_BUF;
++#else
++			p = 512;
++#endif
++#endif
++		assert(p >= 0);
++		pipebuf = p;
++		assert(p == (long)pipebuf);
++		lastfd = Log;
++	}
++
++	if (b <= pipebuf) {
+ 		(void) write(Log,buf,b);
+ 	} else {
+ 		int err;
+@@ -73,6 +88,20 @@ void logdebug(const char *msg, ...)
+ #else
+ 	(void) write(Log,buf,b);
+ #endif
++}
++
++#ifdef DEBUG
++void logdebug(const char *msg, ...)
++{
++	va_list val;
++	char buf[256];
++	size_t b = PrefixLen;
++
++	va_start(val,msg);
++	(void) memcpy(buf,Prefix,b);
++	b += vsnprintf(buf + b,sizeof(buf)-b,msg,val);
++	assert(b < sizeof(buf));
++	logwrite(buf,b);
+ 	va_end(val);
+ }
+ #define debugmsg if (Verbose >= 5) logdebug
+@@ -93,20 +122,7 @@ void infomsg(const char *msg, ...)
+ 		b += vsnprintf(b,sizeof(buf)-(b-buf),msg,val);
+ 		s = b - buf;
+ 		assert(s < sizeof(buf));
+-#ifdef NEED_IO_INTERLOCK
+-		if (s <= PIPE_BUF) {
+-			(void) write(Log,buf,s);
+-		} else {
+-			int err;
+-			err = pthread_mutex_lock(&LogMut);
+-			assert(err == 0);
+-			(void) write(Log,buf,s);
+-			err = pthread_mutex_unlock(&LogMut);
+-			assert(err == 0);
+-		}
+-#else
+-		(void) write(Log,buf,s);
+-#endif
++		logwrite(buf,s);
+ 		va_end(val);
+ 	}
+ }
+@@ -126,20 +142,7 @@ void warningmsg(const char *msg, ...)
+ 		b += vsnprintf(b,sizeof(buf)-(b-buf),msg,val);
+ 		s = b - buf;
+ 		assert(s < sizeof(buf));
+-#ifdef NEED_IO_INTERLOCK
+-		if (s <= PIPE_BUF) {
+-			(void) write(Log,buf,s);
+-		} else {
+-			int err;
+-			err = pthread_mutex_lock(&LogMut);
+-			assert(err == 0);
+-			(void) write(Log,buf,s);
+-			err = pthread_mutex_unlock(&LogMut);
+-			assert(err == 0);
+-		}
+-#else
+-		(void) write(Log,buf,s);
+-#endif
++		logwrite(buf,s);
+ 		va_end(val);
+ 	}
+ }
+@@ -160,20 +163,7 @@ void errormsg(const char *msg, ...)
+ 		b += vsnprintf(b,sizeof(buf)-(b-buf),msg,val);
+ 		s = b - buf;
+ 		assert(s < sizeof(buf));
+-#ifdef NEED_IO_INTERLOCK
+-		if (s <= PIPE_BUF) {
+-			(void) write(Log,buf,s);
+-		} else {
+-			int err;
+-			err = pthread_mutex_lock(&LogMut);
+-			assert(err == 0);
+-			(void) write(Log,buf,s);
+-			err = pthread_mutex_unlock(&LogMut);
+-			assert(err == 0);
+-		}
+-#else
+-		(void) write(Log,buf,s);
+-#endif
++		logwrite(buf,s);
+ 		va_end(val);
+ 	}
+ 	if (ErrorsFatal) {
+@@ -197,20 +187,7 @@ void fatal(const char *msg, ...)
+ 		b += vsnprintf(b,sizeof(buf)-(b-buf),msg,val);
+ 		s = b - buf;
+ 		assert(s < sizeof(buf));
+-#ifdef NEED_IO_INTERLOCK
+-		if (s <= PIPE_BUF) {
+-			(void) write(Log,buf,s);
+-		} else {
+-			int err;
+-			err = pthread_mutex_lock(&LogMut);
+-			assert(err == 0);
+-			(void) write(Log,buf,s);
+-			err = pthread_mutex_unlock(&LogMut);
+-			assert(err == 0);
+-		}
+-#else
+-		(void) write(Log,buf,s);
+-#endif
++		logwrite(buf,s);
+ 		va_end(val);
+ 	}
+ 	exit(EXIT_FAILURE);
