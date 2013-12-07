@@ -1,7 +1,7 @@
 Summary:	Measuring Buffer is an enhanced version of buffer
 Name:		mbuffer
 Version:	20130220
-Release:	1
+Release:	2
 Group:		File tools
 License:	GPLv3+
 URL:		http://www.maier-komor.de/mbuffer.html
