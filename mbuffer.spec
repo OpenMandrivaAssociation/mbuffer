@@ -4,7 +4,7 @@ Version:	20130220
 Release:	6
 Group:		File tools
 License:	GPLv3+
-URL:		http://www.maier-komor.de/mbuffer.html
+URL:		https://www.maier-komor.de/mbuffer.html
 Source0:	http://www.maier-komor.de/software/mbuffer/mbuffer-%{version}.tgz
 Patch0:		mbuffer-20121111-pipe-buf.diff
 Patch1:		mbuffer-20121111-fix_pointer_cast.diff
